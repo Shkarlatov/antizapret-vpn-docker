@@ -68,6 +68,7 @@ type RegexFilter struct {
 	cmd     *exec.Cmd
 	stdin   io.WriteCloser
 	scanner *bufio.Scanner
+	lock    sync.Mutex
 }
 
 var excludeMatcherDist *RegexFilter
@@ -76,6 +77,8 @@ var excludeMatcherCustom *RegexFilter
 const delim = "__DELIM__"
 
 func (rf *RegexFilter) Filter(lines []string) ([]string, error) {
+	rf.lock.Lock()
+	defer rf.lock.Unlock()
 	var result []string
 	for _, line := range lines {
 		if _, err := fmt.Fprintln(rf.stdin, line); err != nil {
@@ -118,6 +121,14 @@ func (rf *RegexFilter) Close() error {
 }
 
 func NewRegexFilter(file string) (*RegexFilter, error) {
+	if out, err := exec.Command("sed", "-i", "s/\\s*$//", file).Output(); err != nil {
+		return nil, fmt.Errorf("Failed to normalize line endings: %v, output: %s", err, string(out))
+	}
+
+	if out, err := exec.Command("gawk", "-i", "inplace", "NF", file).Output(); err != nil {
+		return nil, fmt.Errorf("Failed to remove empty lines: %v, output: %s", err, string(out))
+	}
+
 	cmd := exec.Command(
 		"grep",
 		"--line-buffered",
@@ -150,6 +161,7 @@ func NewRegexFilter(file string) (*RegexFilter, error) {
 		cmd:     cmd,
 		stdin:   stdin,
 		scanner: scanner,
+		lock:    sync.Mutex{},
 	}, nil
 }
 
@@ -244,9 +256,19 @@ func adaptList(w http.ResponseWriter, r *http.Request) {
 		filtered := buffer
 		buffer = nil
 		if req.FilterDist {
+			if excludeMatcherDist == nil {
+				log.Println("[ERROR] Exclude filter not initialized: dist")
+				http.Error(w, "Exclude filter not initialized: dist", http.StatusInternalServerError)
+				return
+			}
 			filtered, _ = excludeMatcherDist.Filter(filtered)
 		}
 		if req.FilterCustom {
+			if excludeMatcherCustom == nil {
+				log.Println("[ERROR] Exclude filter not initialized: custom")
+				http.Error(w, "Exclude filter not initialized: custom", http.StatusInternalServerError)
+				return
+			}
 			filtered, _ = excludeMatcherCustom.Filter(filtered)
 		}
 

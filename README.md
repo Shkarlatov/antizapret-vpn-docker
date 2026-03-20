@@ -3,16 +3,63 @@
 Antizapret created to redirect only blocked domains to VPN tunnel. Its called split tunneling.
 This repo is based on idea from original [AntiZapret LXD image](https://bitbucket.org/anticensority/antizapret-vpn-container/src/master/)
 
+## Table of contents
+
+- [Support and discussions group](#support-and-discussions-group)
+- [Features](#features)
+- [How it works](#how-it-works)
+- [Installation](#installation)
+  - [Single Server (Easy)](#single-server-easy)
+  - [Docker Swarm, multiple exit nodes (Advanced)](#docker-swarm-multiple-exit-nodes-advanced)
+  - [After installation](#after-installation)
+  - [Access admin panels](#access-admin-panels)
+    - [HTTPS](#https)
+    - [Local network](#local-network)
+    - [HTTP](#http)
+  - [Update](#update)
+    - [Upgrade from v4](#upgrade-from-v4)
+  - [Reset](#reset)
+- [Documentation](#documentation)
+  - [DNS resolving algorithm](#dns-resolving-algorithm)
+  - [Adding Domains](#adding-domains)
+    - [Adding Domains via rules](#adding-domains-via-rules)
+    - [Adding Domains via lists](#adding-domains-via-lists)
+  - [Adding IPs/Subnets](#adding-ipssubnets)
+  - [SOCKS5 Proxy (per-application routing)](#socks5-proxy-per-application-routing)
+    - [How it works](#how-it-works-1)
+    - [When to use Dante instead of DNS-based routing](#when-to-use-dante-instead-of-dns-based-routing)
+    - [Configuration](#configuration)
+    - [Client setup](#client-setup)
+    - [Example use cases](#example-use-cases)     
+  - [Environment Variables](#environment-variables)
+  - [DNS](#dns)
+    - [Adguard Upstream DNS](#adguard-upstream-dns)
+    - [CDN + ECS](#cdn--ecs)
+  - [OpenVPN](#openvpn)
+    - [Create client certificates](#create-client-certificates)
+    - [Enable OpenVPN Data Channel Offload (DCO)](#enable-openvpn-data-channel-offload-dco)
+    - [Legacy clients support](#legacy-clients-support)
+  - [Amnezia Wireguard](#amnezia-wireguard)
+    - [Enable Amnezia Wireguard Kernel Extension](#enable-amnezia-wireguard-kernel-extension)
+    - [Amnezia Wireguard Block Size](#amnezia-wireguard-block-size)
+    - [VPN / Hosting block](#vpn--hosting-block)
+  - [Extra information](#extra-information)
+  - [Test speed with iperf3](#test-speed-with-iperf3)
+- [Credits](#credits)
+
 # Support and discussions group:
 https://t.me/antizapret_support
 
 # Features
 
+- Modular design. External and high quality opensource modules/containers are used as builing blocks of our system. 
+- User friendly web panels for administration of VPN's and DNS.
 - Multiple VPN transports: Wireguard, Amnezia Wireguard, OpenVPN
 - AdguardHome as main DNS resolver and blocked domains manager
 - Multi-Server Architecture to bypass services geo restrictions. Different domains use different servers as exit nodes.
 - Firewall to protect from port scanning
 - Support for kernel modules for OpenVPN and Amnezia Wireguard to decrease CPU usage.
+- SOCKS5 proxy (Dante) for per-application routing through local or world exit nodes
 
 # How it works?
 
@@ -24,7 +71,7 @@ https://t.me/antizapret_support
    b) create fake address from 10.244.0.0/15 subnet
    c) create iptables rule to forward all packets from fake ip to real ip.
 5) Fake IP is sent in DNS response to client
-6) All vpn tunnels configured with split tunneling. Only traffic to 10.244.0.0/15 subnet is routed through VPN.
+6) VPN tunnels configured with split tunneling. Only traffic to 10.244.0.0/15 subnet is routed through VPN.
 
 
 # Installation
@@ -66,7 +113,7 @@ Find full example in [docker-compose.override.sample.yml](./docker-compose.overr
 ```
 
 ## Docker Swarm, multiple exit nodes (Advanced)
-Version 5 comes with ability to forward traffic to different exit nodes for different domains. 
+Version 5 and 6 comes with ability to forward traffic to different exit nodes for different domains. 
 For example, YouTube works best if exit node is close to client and other services require foreign IP to work. 
 Docker swarm is used to build unified network between containers.
 
@@ -96,8 +143,18 @@ Some of the sites, which use geoip to block users, will be proxied through **for
 1. [Primary, Secondary]: create config folders on **both nodes**: ```docker compose pull; docker compose up -d; sleep 60; docker compose down;```
 1. [Primary]: start swarm `docker compose config | docker run --rm -i xtrime/antizapret-vpn:5 compose2swarm | docker stack deploy --prune -c - antizapret `
 
+## After installation
+1. By default, an openvpn container uses light obfuscation of UDP packets.  
+    It works on most clients (including routers) but can be blocked by providers.   
+    If you're having issues with ovpn connection see [OBFUSCATE_TYPE](#openvpn) env. 
+    Try to change it from default `1` (light) to `2` (strong) or `0` (off).
+2. Make sure Secure DNS is disabled in your browser settings. 
+   In chrome: Navigate to Settings > Privacy and security > Security, scroll to the "Advanced" section, and toggle off "Use secure DNS"
+3. Install DKMS modules for openvpn and/or amnezia wireguard (if you use them): 
+    - [Enable OpenVPN Data Channel Offload (DCO)](#enable-openvpn-data-channel-offload-dco)
+    - [Enable Amnezia Wireguard Kernel Extension](#enable-amnezia-wireguard-kernel-extension)
 
-## Access admin panels:
+## Access admin panels
 
 ### HTTPS
 By default, all container can be accessed via https. For certificated management separate `https` container is used.
@@ -147,15 +204,17 @@ Some containers have same ports. So you need to choose unique external port in d
 
 - Single instance
    ```shell
-   git pull
+   git pull --rebase
    docker compose down --remove-orphans
    docker compose up -d --remove-orphans
+   docker system prune -af
    ```
 - Swarm mode: 
    ```shell
-   git pull
-   docker pull xtrime/antizapret-vpn:5
-   docker compose config | docker run --rm -i xtrime/antizapret-vpn:5 compose2swarm | docker stack deploy --prune -c - antizapret
+   git pull --rebase
+   docker pull xtrime/antizapret-vpn:6
+   docker compose config | docker run --rm -i xtrime/antizapret-vpn:6 compose2swarm | docker stack deploy --prune -c - antizapret
+   docker system prune -af
    ```
 
 ### Upgrade from v4
@@ -268,53 +327,149 @@ Options for adapter:
  - `suffix=1` - add "$dnsrewrite,client=xxx" to rules
 
 ## Adding IPs/Subnets
-Add ips and subnets to `./config/antizapret/custom/include-ips-custom.txt` and run `docker compose exec antizapret doall`
+Add ips and subnets to `./config/antizapret/custom/include-ips-custom.txt`. 
+Containers periodically check changes in config folder (every 5-10 seconds) and restart/update after any change.
 
+Trigger update manually: `docker exec $(docker ps -q --filter=name=az | head -n1) doall`
+
+## SOCKS5 Proxy (per-application routing)
+
+AntiZapret uses DNS-based split tunneling, which works only for domain-based connections.
+If an application connects directly by IP address, DNS interception does not work and traffic is not routed through the VPN tunnel.
+
+Adding large number of IPs to `include-ips-custom.txt` can cause issues with OpenVPN (push routes limit), so Dante SOCKS5 proxy was added as an alternative solution.
+
+### How it works
+
+1. Connect to VPN (OpenVPN, WireGuard or Amnezia WireGuard)
+2. Configure your application to use SOCKS5 proxy via tools like [AntizapretSOCKS5](https://github.com/danayer/AntizapretSOCKS5) (Windows), ProxyBridge, Proxifier, or browser proxy settings
+3. All traffic from that application (including direct IP connections) will exit through the selected server node
+
+Two socks5 proxy containers are available:
+- **`socks-local.antizapret:8118`** — traffic exits through the **local** server
+- **`socks-world.antizapret:8118`** — traffic exits through the **world** server
+
+Authentication: SOCKS5 with username/password (configured via environment variables).
+To disable authentication, omit `SOCKS_USERNAME` and `SOCKS_PASSWORD` (or leave them empty).
+
+### When to use Dante instead of DNS-based routing
+
+| Scenario | DNS routing | Dante SOCKS5 |
+|---|---|---|
+| Application connects by domain | ✅ Works | ✅ Works |
+| Application connects by IP | ❌ Not routed | ✅ Works |
+| Large number of IPs to route | ❌ OpenVPN push routes limit | ✅ No limit |
+| Per-application exit node selection | ❌ | ✅ Choose local or world per app |
+
+### Configuration
+
+Add socks5 services to `docker-compose.override.yml`:
+```yml
+  socks-local:
+    hostname: socks-local.antizapret
+    extends:
+      file: services/socks/compose.yml
+      service: socks
+    environment:
+      - SOCKS_USERNAME=admin
+      - SOCKS_PASSWORD=password
+    deploy:
+      mode: replicated
+      replicas: 1
+      endpoint_mode: dnsrr
+      placement:
+        constraints: [ node.labels.location == local ]
+
+  socks-world:
+    hostname: socks-world.antizapret
+    extends:
+      file: services/socks/compose.yml
+      service: socks
+    environment:
+      - SOCKS_USERNAME=admin
+      - SOCKS_PASSWORD=password
+    deploy:
+      mode: replicated
+      replicas: 1
+      endpoint_mode: dnsrr
+      placement:
+        constraints: [ node.labels.location == world ]
+```
+
+> **Note:** `socks-world` requires [Docker Swarm mode](#docker-swarm-multiple-exit-nodes-advanced) with two nodes.
+> On a single server only `socks-local` will work.
+
+### Client setup
+
+1. Connect to VPN
+2. Configure SOCKS5 proxy in your application or proxy manager:
+    - **Host:** `socks-local.antizapret` or `socks-world.antizapret`
+    - **Port:** `8118`
+    - **Type:** SOCKS5
+    - **Username:** value of `SOCKS_USERNAME`
+    - **Password:** value of `SOCKS_PASSWORD`
+
+#### Windows
+
+For Windows clients, use [AntizapretSOCKS5](https://github.com/danayer/AntizapretSOCKS5) — a GUI application for configuring per-application SOCKS5 routing using [ProxiFyre](https://github.com/wiresock/proxifyre).
+
+1. Download and extract [AntizapretSOCKS5](https://github.com/danayer/AntizapretSOCKS5)
+2. Run `ConfigEditor.exe` and install the Windows Packet Filter driver when prompted
+3. Add proxy configurations — select applications, choose proxy server (`socks-local.antizapret:8118` or `socks-world.antizapret:8118`), and set credentials
+4. Save configuration and start ProxiFyre
+
+### Example use cases
+
+- **Game client** that connects to servers by IP — route through `socks-world` to bypass geo-restrictions
+- **Torrent client** — route through `socks-world` for foreign IP
+- **Browser** — use proxy extension to route specific sites through `socks-local` or `socks-world`
+- **Application with many hardcoded IPs** — instead of adding hundreds of IPs to `include-ips-custom.txt`, just proxy the whole app through socks5
 
 ## Environment Variables
 
 You can define these variables in docker-compose.override.yml file for your needs:
 
-Antizapret:
+### Antizapret:
 Consists of two containers: az-local and az-world. This is VPN exit nodes.
 - `DNS=adguard` - Upstream DNS for resolving blocked sites (adguard by default)
 - `AZ_SUBNET=10.224.0.0/15` Subnet for virtual addresses for blocked hosts.
 - `ROUTES` - list of VPN containers and their virtual addresses. Used for iperf3 server.
 - `DOALL_DISABLED=` - skip run on az-world node.
 
-Adguard: 
+### Adguard: 
 - `ROUTES` - list of VPN containers and their virtual addresses. Used for unique client addresses in adguard logs
 - `ADGUARDHOME_PORT=3000`
 - `ADGUARDHOME_USERNAME=admin`
 - `ADGUARDHOME_PASSWORD=`
 - `ADGUARDHOME_PASSWORD_HASH=` - hashed password, taken from the AdGuardHome.yaml file after the first run using `ADGUARDHOME_PASSWORD`. Dollar sign `$` in hash must be escaped with another dollar sign: `$$`
 
-CoreDNS: 
+### CoreDNS: 
 - None
 
-Filebrowser:
+### Filebrowser:
 - `FILEBROWSER_PORT=admin`
 - `FILEBROWSER_PASSWORD=password`
 
-Proxy:
+### Proxy:
 - `PROXY_DOMAIN=` - create letsencrypt https certificate for domain. If not set host ip is used for self-signed certificate.
 - `PROXY_EMAIL=` - email for letsecnrypt certificate.
+- `SOCKS_EXTERNAL_IFACES` - comma-separated list of external network interfaces for the SOCKS proxy (e.g. `eth0,eth1`). If omitted, interfaces are auto-detected; falls back to `eth0` when none are found
 
-Openvpn
+### Openvpn
 - `ROUTES`
-- `OBFUSCATE_TYPE=0` - custom obfuscation level of openvpn protocol.
-   0 - disable.Act as regular openvpn client, support by all clients.
-   1 - light obfuscation, works with microtics
-   2 - strong obfuscation, works with some clients: openvpn gui client, asuswrt client...
+- `OBFUSCATE_TYPE=1` - custom obfuscation level of openvpn protocol.
+    - 0 - disable. Regular openvpn client mode, supported by all clients.
+    - 1 - light obfuscation. Works with microtic and old keenetic routers
+    - 2 - strong obfuscation. Works with most of the clients: openvpn official gui client, asus routers, new keenetic routers, openwrt routers.
 - `AZ_LOCAL_SUBNET=10.224.0.0/15` - subnet for virtual blocked ips. Local exit node
 - `AZ_WORLD_SUBNET=10.226.0.0/15` - subnet for virtual blocked ips. Remote exit node
 
-Openvpn-ui
+### Openvpn-ui
 - `OPENVPN_ADMIN_PASSWORD=` — will be used as a server address in .ovpn profiles upon keys generation (default: your server's IP)
 - `OPENVPN_DNS=10.224.0.1` - DNS address for clients. Must be in `ANTIZAPRET_SUBNET`
 - `OPENVPN_LOCAL_IP_RANGE=10.1.165.0` - subnet for ovpn clients. Subnet can be viewed in adguard journal or in ovpn-ui panel
 
-Wireguard/Wireguard Amnezia
+### Wireguard/Wireguard Amnezia
 - `ROUTES` 
 - `WIREGUARD_PASSWORD=` - password for admin panel
 - `WIREGUARD_PASSWORD_HASH=` - [hashed password](https://github.com/wg-easy/wg-easy/blob/v14.0.0/How_to_generate_an_bcrypt_hash.md) for admin panel
@@ -325,6 +480,10 @@ Wireguard/Wireguard Amnezia
 - `PORT=51821` - admin panel port
 - `WG_PORT=51820` - wireguard server port
 - `WG_DEVICE=eth0`
+
+### SOCKS5 Proxy
+- `SOCKS_USERNAME` - username for SOCKS5 authentication (omit to disable authentication)
+- `SOCKS_PASSWORD` - password for SOCKS5 authentication (omit to disable authentication)
 
 ## DNS
 ### Adguard Upstream DNS
@@ -499,9 +658,9 @@ iperf3 server is included in antizapret-vpn container.
 - [Amnezia WireGuard VPN](https://github.com/w0rng/amnezia-wg-easy) — used for Amnezia Wireguard integration
 - [WireGuard VPN](https://github.com/wg-easy/wg-easy) — used for Wireguard integration
 - [OpenVPN](https://github.com/d3vilh/openvpn-ui) - used for OpenVPN integration
-- [IPsec VPN](https://github.com/hwdsl2/docker-ipsec-vpn-server) — used for IPsec integration
 - [AdGuardHome](https://github.com/AdguardTeam/AdGuardHome) - DNS resolver
 - [filebrowser](https://github.com/filebrowser/filebrowser) - web file browser & editor
 - [lighttpd](https://github.com/lighttpd/lighttpd1.4) - web server for unified dashboard
 - [caddy](https://github.com/caddyserver/caddy) - reverse proxy
 - [No Thought Is a Crime](https://ntc.party) — a forum about technical, political and economical aspects of internet censorship in different countries
+- [Dante](https://www.inet.no/dante/) - SOCKS5 proxy server for per-application routing

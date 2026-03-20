@@ -1,39 +1,47 @@
-# root domains
-com.ua
-ua
-
+# This hosts will be proxied through az-local exit node
 
 # global
 acf.international
 adguard.com
 amazfitwatchfaces.com
 bbci.co.uk
-buymeacoffee.com
 cloudflare.com
-cloudfront.net
-deezer.com
+cloudflareinsights.com
 fanatical.com
-game-debate.com
 getoutline.com
 intercomcdn.com
 lib.ru
 licdn.com
 lostfilm.tv
 pravdabeslana.ru
-radiojar.com
-readybot.io
-rebrand.ly
-redgifs.com
-seekvectorlogo.net
-simsync.io
-strava.com
-swagger.io
 theins.ru
 wixmp.com
-reverb.com
+readybot.io
+ioncube.com
+justice.gov
 
+#nexus-mode
+nexusmods.com
+nexus-cdn.com
+nexusmods-cdn.com
 
-# youtube
+# google
+google-analytics.com
+*gstatic.com
+dl.google.com
+dl-ssl.google.com
+android.com
+androidify.com
+android.apis.google.com
+android.clients.google.com
+*.gvt1.com
+*.gvt2.com
+*.gvt3.com
+play-fe.googleapis.com
+play.googleapis.com
+play.google.com
+news.google.com
+chrome.google.com
 youtube.com
 youtu.be
 ytimg.com
@@ -41,64 +49,15 @@ ggpht.com
 googleusercontent.com
 googlevideo.com
 youtubei.googleapis.com
-
-
-# google
-news.google.com
-chrome.google.com
-
-# gemini
-gemini.google.com
-proactivebackend-pa.googleapis.com
-
-
-# google play and android
-play.google.com
-google-analytics.com
-googleusercontent.com
-*gstatic.com
-*.gvt1.com
-*.ggpht.com
-dl.google.com
-dl-ssl.google.com
-android.com
-androidify.com
-android.apis.google.com
-android.clients.google.com
-*.gvt2.com
-*.gvt3.com
-googleplay.com
-play-fe.googleapis.com
-play-games.googleusercontent.com
-play-lh.googleusercontent.com
-play.googleapis.com
-
+youtubekids.com
 
 # twitter
 t.co
 twimg.com
 x.com
 
-
 # signal
 signal.org
-
-
-# smartbear
-smartbear.co
-smartbear.com
-
-
-# openai
-chatgpt.com
-oaistatic.com
-oaiusercontent.com
-openai.com
-
-# grok
-x.ai
-grok.com
-
 
 # rutracker
 t-ru.org
@@ -106,47 +65,9 @@ rutracker.org
 rutracker.cc
 rutrk.org
 
-
 # nnmclub
 nnm-club.ws
 nnmclub.ch
-
-# developer tools
-docker.com
-mongodb.com
-mongodb-cdn.com
-mongodb.net
-jetbrains.com
-code.org
-veeam.com
-digitalocean.com
-hashicorp.com
-terraform.io
-githubcopilot.com
-mbed.com
-analog.com
-microchip.com
-digikey.com
-te.com
-nxp.com
-brightcove.com
-brightcove.net
-schemaapp.com
-zencdn.net
-octopart-clicks.com
-octopart.com
-octostatic.com
-dell.com
-dellcdn.com
-ti.com
-mouser.com
-qualcomm.com
-usablenet.com
-recraft.ai
-hetzner.com
-pokerplanning.org
-thanosjs.org
-smartsheet.com
 
 #discord
 discord.com
@@ -154,17 +75,99 @@ discord.gg
 discordapp.net
 discordapp.com
 discord.media
+discordcdn.com
 discord-attachments-uploads-prd.storage.googleapis.com
 
-# video
-hdrezka.me
+#video
 voidboost.cc
 voidboost.in
 
-# roblox
+#roblox
 roblox.com
 rbxcdn.com
+
+#ubisoft
+store.ubi.com
+store.ubisoft.com
+connect.ubisoft.com
+public-ubiservices.ubi.com
+upc.ubisoft.com
+ubistatic-a.ubisoft.com
+
+#bethesda (Fallout 76)
+beth.games
+bethesda.net
+bethesdagamestudios.com
+bethsoft.com
+p76prod.systems
+
+#games
+agar.io
+shirogames.com
+
+#AmazonAWS
+amazonaws.com
+api.aws
+aws.amazon.com
+awsapps.com
+awsglobalaccelerator.com
+acmvalidations.com
+acmvalidationsaws.com
+aesworkshops.com
+amazonaws-china.com
+amazonaws.biz
+amazonaws.co.uk
+amazonaws.info
+amazonaws.net
+amazonaws.org
+amazonaws.tv
+amazonses.com
+amazonworkdocs.com
+amplifyapp.com
+amplifyframework.com
+aws-iot-hackathon.com
+awsautopilot.com
+awsautoscaling.com
+awsbraket.com
+awscommandlineinterface.com
+awsedstart.com
+awseducate.com
+awseducate.net
+awseducate.org
+awsglobalaccelerator.com
+awsloft-johannesburg.com
+awsloft-stockholm.com
+awssecworkshops.com
+awsstatic.com
+awsthinkbox.com
+awstrack.me
+cdkworkshop.com
+cloudfront.com
+cloudfront.net
+containersonaws.com
+elasticbeanstalk.com
+thinkboxsoftware.com
+
+#Bybit
+#bybit.com
+bycsi.com
+bytick.com
+byapis.com
+bycbe.com
+bymj.io
+byabcde.com
+byapps.net
+byd3c3.com
+bybit.biz
+bybdc6.com
+bybit-global.com
+bybit.cloud
+bybitglobal.com
 
 # apple facetime
 facetime.apple.com
 facetime-apple-com.we.apple-dns.net
+
+#CDN
+cdn.oninvest.com
+cdn.confiant-integrations.net
